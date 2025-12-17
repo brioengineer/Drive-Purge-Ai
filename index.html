@@ -17,12 +17,6 @@
             backdrop-filter: blur(16px);
             border: 1px solid rgba(255, 255, 255, 0.4);
         }
-        .animate-float { animation: float 6s ease-in-out infinite; }
-        @keyframes float {
-            0% { transform: translateY(0px); }
-            50% { transform: translateY(-10px); }
-            100% { transform: translateY(0px); }
-        }
     </style>
     <script type="importmap">
 {
@@ -39,11 +33,12 @@
 </head>
 <body>
     <div id="root"></div>
+    <!-- Using relative path for GitHub Pages subfolder compatibility -->
     <script 
       type="text/babel" 
       data-type="module" 
       data-presets="react,typescript" 
-      src="./index.tsx">
+      src="index.tsx">
     </script>
 </body>
 </html>

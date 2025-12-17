@@ -12,7 +12,6 @@ class GoogleDriveService {
   public initialized: boolean = false;
 
   async init(onAuthChange: (auth: boolean) => void) {
-    console.log("[DrivePurge] System Origin:", window.location.origin);
     return new Promise<void>((resolve) => {
       const checkInterval = setInterval(() => {
         const gapi = (window as any).gapi;
@@ -22,60 +21,54 @@ class GoogleDriveService {
           clearInterval(checkInterval);
           this.gapi = gapi;
           this.google = google;
-          this.setupClient(onAuthChange).then(resolve);
+          this.setupGisClient(onAuthChange).then(resolve);
         }
       }, 500);
     });
   }
 
-  private async setupClient(onAuthChange: (auth: boolean) => void) {
+  private async setupGisClient(onAuthChange: (auth: boolean) => void) {
+    try {
+      this.tokenClient = this.google.accounts.oauth2.initTokenClient({
+        client_id: MASTER_CLIENT_ID,
+        scope: SCOPES,
+        callback: async (resp: any) => {
+          if (resp.error) {
+            console.error("Auth Callback Error:", resp);
+            return;
+          }
+          // After getting token, initialize GAPI client
+          await this.initGapi(resp.access_token);
+          this.authenticated = true;
+          onAuthChange(true);
+        },
+      });
+      this.initialized = true;
+    } catch (e) {
+      console.error("GIS Setup Error:", e);
+    }
+  }
+
+  private async initGapi(accessToken: string) {
     return new Promise<void>((resolve) => {
       this.gapi.load('client', async () => {
-        try {
-          await this.gapi.client.init({
-            discoveryDocs: ["https://www.googleapis.com/discovery/v1/apis/drive/v3/rest"],
-          });
-          
-          if (MASTER_CLIENT_ID) {
-            this.tokenClient = this.google.accounts.oauth2.initTokenClient({
-              client_id: MASTER_CLIENT_ID,
-              scope: SCOPES,
-              callback: (resp: any) => {
-                if (resp.error) {
-                  console.error("GIS Callback Error:", resp);
-                  return;
-                }
-                this.authenticated = true;
-                onAuthChange(true);
-              },
-            });
-          }
-          this.initialized = true;
-          resolve();
-        } catch (e) {
-          console.error("GAPI/GIS Init Error:", e);
-          resolve();
-        }
+        await this.gapi.client.init({
+          discoveryDocs: ["https://www.googleapis.com/discovery/v1/apis/drive/v3/rest"],
+        });
+        this.gapi.client.setToken({ access_token: accessToken });
+        resolve();
       });
     });
   }
 
   async login() {
-    if (!this.tokenClient) {
-      throw new Error("Google libraries are still loading. Please wait a moment.");
-    }
-    
-    try {
-      // Use 'select_account' to force a fresh interaction if 'consent' is failing
-      this.tokenClient.requestAccessToken({ prompt: 'select_account' });
-    } catch (err) {
-      console.error("Login trigger error:", err);
-      throw err;
-    }
+    if (!this.tokenClient) throw new Error("OAuth library not ready.");
+    // 'select_account' forces a fresh login which often bypasses stale cookie errors
+    this.tokenClient.requestAccessToken({ prompt: 'select_account' });
   }
 
   async listFiles(pageSize: number = 200): Promise<DriveFile[]> {
-    if (!this.authenticated) throw new Error("Please connect your Drive account first.");
+    if (!this.authenticated) throw new Error("Session expired. Please reconnect.");
     const response = await this.gapi.client.drive.files.list({
       pageSize,
       fields: 'files(id, name, size, mimeType, modifiedTime, md5Checksum, webViewLink, thumbnailLink)',
