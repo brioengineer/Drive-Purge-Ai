@@ -7,7 +7,7 @@ import { DriveFile } from "../types";
  * 2. Add your GitHub Pages URL to "Authorized JavaScript origins"
  * 3. Replace the string below with your Client ID.
  */
-const MASTER_CLIENT_ID = 'YOUR_PRODUCTION_CLIENT_ID.apps.googleusercontent.com'; 
+const MASTER_CLIENT_ID = '226301323416-fjko3npic0p35ldf5quauabu5ujbrl82.apps.googleusercontent.com'; 
 const SCOPES = 'https://www.googleapis.com/auth/drive.metadata.readonly https://www.googleapis.com/auth/drive.file';
 
 class GoogleDriveService {
