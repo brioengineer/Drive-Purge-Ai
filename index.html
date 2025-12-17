@@ -6,7 +6,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DrivePurge AI Agent</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Babel allows running TSX directly in the browser -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script src="https://apis.google.com/js/api.js" async defer></script>
@@ -14,9 +13,15 @@
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
         body { font-family: 'Inter', sans-serif; background-color: #f8fafc; margin: 0; }
         .glass-panel {
-            background: rgba(255, 255, 255, 0.7);
-            backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.3);
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+        }
+        .animate-float { animation: float 6s ease-in-out infinite; }
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+            100% { transform: translateY(0px); }
         }
     </style>
     <script type="importmap">
@@ -34,11 +39,6 @@
 </head>
 <body>
     <div id="root"></div>
-    <!-- 
-      IMPORTANT: 
-      1. We use data-presets="react,typescript" so Babel knows how to handle TSX.
-      2. We use data-type="module" so it acts like an ES Module.
-    -->
     <script 
       type="text/babel" 
       data-type="module" 
