@@ -12,6 +12,8 @@ class GoogleDriveService {
   public initialized: boolean = false;
 
   async init(onAuthChange: (auth: boolean) => void) {
+    console.log("[DriveService] Initializing with Origin:", window.location.origin);
+    
     return new Promise<void>((resolve) => {
       const checkInterval = setInterval(() => {
         const gapi = (window as any).gapi;
@@ -34,10 +36,9 @@ class GoogleDriveService {
         scope: SCOPES,
         callback: async (resp: any) => {
           if (resp.error) {
-            console.error("Auth Callback Error:", resp);
+            console.error("[DriveService] OAuth Callback Error:", resp);
             return;
           }
-          // After getting token, initialize GAPI client
           await this.initGapi(resp.access_token);
           this.authenticated = true;
           onAuthChange(true);
@@ -45,30 +46,46 @@ class GoogleDriveService {
       });
       this.initialized = true;
     } catch (e) {
-      console.error("GIS Setup Error:", e);
+      console.error("[DriveService] GIS Setup Error:", e);
     }
   }
 
   private async initGapi(accessToken: string) {
     return new Promise<void>((resolve) => {
       this.gapi.load('client', async () => {
-        await this.gapi.client.init({
-          discoveryDocs: ["https://www.googleapis.com/discovery/v1/apis/drive/v3/rest"],
-        });
-        this.gapi.client.setToken({ access_token: accessToken });
-        resolve();
+        try {
+          await this.gapi.client.init({
+            discoveryDocs: ["https://www.googleapis.com/discovery/v1/apis/drive/v3/rest"],
+          });
+          this.gapi.client.setToken({ access_token: accessToken });
+          resolve();
+        } catch (e) {
+          console.error("[DriveService] GAPI Client Init Error:", e);
+          resolve();
+        }
       });
     });
   }
 
   async login() {
-    if (!this.tokenClient) throw new Error("OAuth library not ready.");
-    // 'select_account' forces a fresh login which often bypasses stale cookie errors
-    this.tokenClient.requestAccessToken({ prompt: 'select_account' });
+    if (!this.tokenClient) {
+      const msg = "Google Identity Services (GIS) library not ready. This might be caused by blocked scripts or trackers.";
+      console.error("[DriveService]", msg);
+      throw new Error(msg);
+    }
+    
+    console.log("[DriveService] Requesting Access Token...");
+    try {
+      // 'select_account' helps when multiple sessions cause cookie relay issues
+      this.tokenClient.requestAccessToken({ prompt: 'select_account' });
+    } catch (err) {
+      console.error("[DriveService] Login trigger failure:", err);
+      throw err;
+    }
   }
 
   async listFiles(pageSize: number = 200): Promise<DriveFile[]> {
-    if (!this.authenticated) throw new Error("Session expired. Please reconnect.");
+    if (!this.authenticated) throw new Error("Not authenticated.");
     const response = await this.gapi.client.drive.files.list({
       pageSize,
       fields: 'files(id, name, size, mimeType, modifiedTime, md5Checksum, webViewLink, thumbnailLink)',
