@@ -39,13 +39,11 @@ const App: React.FC = () => {
         try {
             setAgentMessage("Handshaking with Google...");
             await driveService.login();
-            // Note: GIS uses a callback, so we don't proceed to SCANNING here.
-            // The callback in init() will update isAuthenticated, then the user clicks again.
             return; 
         } catch (e: any) {
             setError({
-                title: "Google Auth Error 400",
-                msg: e.message || "Invalid Request (storagerelay). This is an Origin mismatch.",
+                title: "Connection Failed",
+                msg: e.message || "storagerelay error",
                 origin: window.location.origin
             });
             return;
@@ -60,7 +58,7 @@ const App: React.FC = () => {
       setFiles(fetchedFiles);
       
       setState(AppState.ANALYZING);
-      setAgentMessage("Gemini AI is reasoning over your storage...");
+      setAgentMessage("AI Agent reasoning over metadata...");
       
       const analysis = await analyzeFilesWithGemini(fetchedFiles);
       setCandidates(analysis.candidates);
@@ -75,7 +73,7 @@ const App: React.FC = () => {
     } catch (err: any) {
       setError({
           title: "Audit Interrupted",
-          msg: err.message || "Analysis engine failed.",
+          msg: err.message || "Analysis engine failure.",
           origin: window.location.origin
       });
       setState(AppState.LANDING);
@@ -130,33 +128,17 @@ const App: React.FC = () => {
             <div className="py-12 animate-in fade-in slide-in-from-bottom-8 duration-1000">
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-20 items-center">
                     <div>
-                        <span className="inline-block px-4 py-1.5 bg-indigo-50 text-indigo-600 rounded-full text-[11px] font-black uppercase tracking-[0.2em] mb-8">Google Drive Agent</span>
+                        <span className="inline-block px-4 py-1.5 bg-indigo-50 text-indigo-600 rounded-full text-[11px] font-black uppercase tracking-[0.2em] mb-8">Storage Intelligence</span>
                         <h1 className="text-6xl font-black text-slate-900 leading-[1.05] mb-8 tracking-tighter">
-                            Reclaim space <br/> using <span className="text-indigo-600">AI reasoning.</span>
+                            Reclaim space <br/> with <span className="text-indigo-600">AI reasoning.</span>
                         </h1>
-                        <p className="text-xl text-slate-500 mb-12 leading-relaxed">Let Gemini identify duplicates, ancient drafts, and hidden storage hogs for you.</p>
+                        <p className="text-xl text-slate-500 mb-12 leading-relaxed">Gemini Agent identifies duplicates, ancient drafts, and hidden storage hogs for you.</p>
                         <div className="flex flex-col sm:flex-row gap-5">
                             <button onClick={() => startAnalysis(false)} className="bg-slate-900 text-white px-10 py-6 rounded-2xl font-black text-xl hover:bg-indigo-600 transition-all flex items-center justify-center gap-4 shadow-2xl hover:-translate-y-1">
                                 <img src="https://www.gstatic.com/images/branding/product/1x/googleg_32dp.png" className="w-7 h-7 bg-white rounded-full p-1.5 shadow-sm" alt=""/>
-                                {isAuthenticated ? 'Begin Audit' : 'Connect Drive'}
+                                {isAuthenticated ? 'Begin Scan' : 'Connect Drive'}
                             </button>
                             <button onClick={() => startAnalysis(true)} className="bg-white border-2 border-slate-100 text-slate-400 px-10 py-6 rounded-2xl font-black text-xl hover:border-indigo-100 hover:text-indigo-600 transition-all">Demo Audit</button>
-                        </div>
-                    </div>
-                    <div className="relative hidden lg:block">
-                        <div className="bg-white border border-slate-100 rounded-[48px] p-10 shadow-2xl relative animate-float">
-                            <div className="flex items-center gap-5 mb-10">
-                                <div className="w-14 h-14 bg-indigo-600 rounded-2xl flex items-center justify-center text-3xl shadow-lg">🤖</div>
-                                <div>
-                                    <h3 className="font-black text-slate-900 text-xl tracking-tight">Agent Alpha</h3>
-                                    <p className="text-xs text-indigo-500 font-black uppercase tracking-widest">Active Diagnostic</p>
-                                </div>
-                            </div>
-                            <div className="space-y-4">
-                                <div className="h-4 bg-slate-50 rounded-full w-4/5"></div>
-                                <div className="h-4 bg-slate-50 rounded-full w-full"></div>
-                                <div className="h-4 bg-slate-50 rounded-full w-2/3"></div>
-                            </div>
                         </div>
                     </div>
                 </div>
@@ -164,13 +146,11 @@ const App: React.FC = () => {
         )}
 
         {(state === AppState.SCANNING || state === AppState.ANALYZING || state === AppState.TRASHING) && (
-          <div className="h-[60vh] flex flex-col items-center justify-center text-center animate-in fade-in zoom-in-95 duration-700">
+          <div className="h-[60vh] flex flex-col items-center justify-center text-center animate-in fade-in duration-700">
             <div className="relative w-32 h-32 mb-12">
                 <div className="absolute inset-0 border-4 border-slate-50 rounded-full"></div>
                 <div className="absolute inset-0 border-4 border-indigo-600 rounded-full border-t-transparent animate-spin"></div>
-                <div className="absolute inset-0 flex items-center justify-center text-5xl">
-                    {state === AppState.TRASHING ? '🗑️' : '🧠'}
-                </div>
+                <div className="absolute inset-0 flex items-center justify-center text-5xl">🧠</div>
             </div>
             <h2 className="text-3xl font-black text-slate-900 tracking-tight">{agentMessage}</h2>
           </div>
@@ -180,12 +160,8 @@ const App: React.FC = () => {
           <div className="animate-in fade-in slide-in-from-bottom-8 duration-1000">
               <div className="flex items-end justify-between mb-12">
                 <div>
-                    <h3 className="text-4xl font-black text-slate-900 tracking-tight mb-2">Audit Results</h3>
+                    <h3 className="text-4xl font-black text-slate-900 tracking-tight mb-2">Audit Findings</h3>
                     <p className="text-slate-400 font-medium">{candidates.length} candidates identified for removal.</p>
-                </div>
-                <div className="flex gap-4">
-                  <button onClick={() => setSelectedIds(new Set(candidates.map(c => c.id)))} className="px-5 py-2 rounded-xl text-xs font-black text-indigo-600 uppercase tracking-widest hover:bg-indigo-50">Select All</button>
-                  <button onClick={() => setSelectedIds(new Set())} className="px-5 py-2 rounded-xl text-xs font-black text-slate-300 uppercase tracking-widest hover:bg-slate-50">Clear</button>
                 </div>
               </div>
               
@@ -205,60 +181,48 @@ const App: React.FC = () => {
         )}
 
         {state === AppState.COMPLETED && (
-            <div className="py-24 text-center animate-in zoom-in-90 duration-500">
-                <div className="w-32 h-32 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center text-7xl mx-auto mb-12 shadow-inner">✨</div>
-                <h2 className="text-5xl font-black text-slate-900 mb-6 tracking-tighter">Mission Accomplished.</h2>
-                <p className="text-xl text-slate-400 mb-12 font-medium">Your storage is now optimized.</p>
-                <button onClick={() => setState(AppState.LANDING)} className="bg-slate-900 text-white px-12 py-5 rounded-2xl font-black text-xl hover:bg-indigo-600 transition-all shadow-2xl">Return to Hub</button>
+            <div className="py-24 text-center">
+                <div className="w-32 h-32 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center text-7xl mx-auto mb-12">✨</div>
+                <h2 className="text-5xl font-black text-slate-900 mb-6 tracking-tighter">Space Reclaimed.</h2>
+                <button onClick={() => setState(AppState.LANDING)} className="bg-slate-900 text-white px-12 py-5 rounded-2xl font-black text-xl hover:bg-indigo-600 transition-all shadow-2xl">Return to Dashboard</button>
             </div>
         )}
 
         {error && (
             <div className="mt-12 p-10 bg-rose-50 border border-rose-100 rounded-[40px] flex flex-col gap-8 animate-in slide-in-from-top-4 shadow-xl">
                 <div className="flex items-start gap-6">
-                  <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center text-4xl shadow-sm border border-rose-100">🛑</div>
+                  <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center text-4xl shadow-sm border border-rose-100">⚠️</div>
                   <div className="flex-1">
-                      <h4 className="font-black text-rose-900 text-2xl tracking-tight mb-2">Google Rejected Connection</h4>
+                      <h4 className="font-black text-rose-900 text-2xl tracking-tight mb-2">Google Connection Blocked</h4>
                       <p className="text-rose-700 leading-relaxed font-medium">
-                        The "Error 400: invalid_request" or "storagerelay" error means Google doesn't recognize your URL.
+                        The "storagerelay" error is usually caused by <strong>Third-Party Cookie settings</strong>.
                       </p>
                   </div>
                 </div>
                 
                 <div className="bg-white p-8 rounded-3xl border border-rose-200 shadow-sm">
-                  <h5 className="text-[11px] font-black text-indigo-600 uppercase tracking-[0.2em] mb-6">CRITICAL FIX: Origin Mismatch</h5>
+                  <h5 className="text-[11px] font-black text-indigo-600 uppercase tracking-[0.2em] mb-6">How to fix this:</h5>
                   
-                  <div className="space-y-8">
-                    <div>
-                        <p className="text-sm text-slate-600 mb-3 font-semibold italic">Did you add the slash?</p>
-                        <p className="text-xs text-slate-500 mb-4">Google requires the origin to have <strong>NO trailing slash</strong> and <strong>NO sub-paths</strong>.</p>
-                        <div className="flex items-center gap-3">
-                            <code className="flex-1 bg-slate-50 p-4 rounded-xl font-mono text-sm font-bold text-indigo-700 border border-slate-200 break-all select-all">
-                                {error.origin}
-                            </code>
-                            <button 
-                                onClick={() => navigator.clipboard.writeText(error.origin)}
-                                className="bg-slate-900 text-white px-6 py-4 rounded-xl text-xs font-black uppercase hover:bg-indigo-600 transition-colors shadow-lg"
-                            >
-                                Copy Origin
-                            </button>
-                        </div>
-                        <p className="text-[10px] text-rose-500 mt-3 font-bold uppercase tracking-tight">⚠️ In Google Cloud Console: DO NOT add "/DrivePurgeAI/" or any other suffix.</p>
+                  <div className="space-y-6">
+                    <div className="flex items-start gap-4">
+                        <div className="w-6 h-6 bg-slate-100 rounded-full flex items-center justify-center text-xs font-bold text-slate-500 flex-shrink-0 mt-1">1</div>
+                        <p className="text-sm text-slate-600">
+                           <strong>Disable "Block third-party cookies"</strong> in your browser settings. Google needs these to pass the login token from their popup back to this page.
+                        </p>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-6 border-t border-slate-100">
-                        <div>
-                            <h6 className="text-xs font-black text-slate-800 uppercase mb-2">Publishing Status</h6>
-                            <p className="text-[11px] text-slate-500 leading-relaxed">
-                                <strong>Yes, publish it to Production.</strong> It removes the manual "Test User" requirement. However, this does <em>not</em> fix the 400 error; only the Origin setting fixes that.
-                            </p>
-                        </div>
-                        <div>
-                            <h6 className="text-xs font-black text-slate-800 uppercase mb-2">Propagation Time</h6>
-                            <p className="text-[11px] text-slate-500 leading-relaxed">
-                                After you save changes in the Google Cloud Console, <strong>wait 5 full minutes</strong>. Google's global DNS and policy servers take time to sync.
-                            </p>
-                        </div>
+                    <div className="flex items-start gap-4">
+                        <div className="w-6 h-6 bg-slate-100 rounded-full flex items-center justify-center text-xs font-bold text-slate-500 flex-shrink-0 mt-1">2</div>
+                        <p className="text-sm text-slate-600">
+                           <strong>Don't use Incognito Mode.</strong> Privacy modes often block the necessary scripts for Google Drive to communicate.
+                        </p>
+                    </div>
+
+                    <div className="flex items-start gap-4 pt-4 border-t border-slate-100">
+                        <div className="w-6 h-6 bg-indigo-100 rounded-full flex items-center justify-center text-xs font-bold text-indigo-500 flex-shrink-0 mt-1">✓</div>
+                        <p className="text-sm text-slate-600">
+                           Your Google Console setting of <code>{error.origin}</code> is correct. No changes needed there!
+                        </p>
                     </div>
                   </div>
                 </div>
