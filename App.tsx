@@ -1,6 +1,5 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { AppState, DriveFile, CleanupCandidate } from './types';
 import { driveService } from './services/googleDriveService';
 import { analyzeFilesWithGemini } from './services/geminiService';
@@ -21,7 +20,7 @@ const App: React.FC = () => {
   const [candidates, setCandidates] = useState<CleanupCandidate[]>([]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [agentMessage, setAgentMessage] = useState<string>("Ready to audit your storage ecosystem.");
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<{title: string, msg: string, origin: string} | null>(null);
 
   useEffect(() => {
     driveService.init((authStatus) => {
@@ -38,33 +37,26 @@ const App: React.FC = () => {
       const f = files.find(file => file.id === c.id);
       return acc + (f?.size ? parseInt(f.size) : 0);
     }, 0);
-    const selectedSize = Array.from(selectedIds).reduce((acc, id) => {
-        const f = files.find(file => file.id === id);
-        return acc + (f?.size ? parseInt(f.size) : 0);
-    }, 0);
-    return { totalSize, candidateSize, selectedSize };
-  }, [files, candidates, selectedIds]);
-
-  const chartData = [
-    { name: 'Redundant', value: stats.candidateSize || 0.1 },
-    { name: 'Optimized', value: Math.max(0.1, stats.totalSize - stats.candidateSize) },
-  ];
-
-  const COLORS = ['#6366F1', '#E2E8F0'];
+    return { totalSize, candidateSize };
+  }, [files, candidates]);
 
   const startAnalysis = async (isDemo: boolean = false) => {
+    setError(null);
     if (!isDemo && !isAuthenticated) {
         try {
             await driveService.login();
             return; 
         } catch (e: any) {
-            setError(e.message);
+            setError({
+                title: "Authentication Failed",
+                msg: e.message || "Could not initialize Google login.",
+                origin: window.location.origin
+            });
             return;
         }
     }
 
     setState(AppState.SCANNING);
-    setError(null);
     setAgentMessage("Indexing file metadata and permission structures...");
     
     try {
@@ -85,7 +77,11 @@ const App: React.FC = () => {
       setAgentMessage(analysis.summary);
       setState(AppState.REVIEWING);
     } catch (err: any) {
-      setError(err.message || "Analysis failed. Please try again.");
+      setError({
+          title: "Analysis Error",
+          msg: err.message || "Failed to process Drive files.",
+          origin: window.location.origin
+      });
       setState(AppState.LANDING);
     }
   };
@@ -99,18 +95,19 @@ const App: React.FC = () => {
       for (const id of Array.from(selectedIds)) {
         await driveService.trashFile(id);
       }
-      
       const remainingFiles = files.filter(f => !selectedIds.has(f.id));
       const remainingCandidates = candidates.filter(c => !selectedIds.has(c.id));
-      
       setFiles(remainingFiles);
       setCandidates(remainingCandidates);
       setSelectedIds(new Set());
-      
       setState(AppState.COMPLETED);
-      setAgentMessage("Optimization cycle complete. Your storage health has been significantly improved.");
+      setAgentMessage("Optimization cycle complete.");
     } catch (err: any) {
-      setError("Cleanup interrupted: " + err.message);
+      setError({
+          title: "Cleanup Failed",
+          msg: err.message,
+          origin: window.location.origin
+      });
       setState(AppState.REVIEWING);
     }
   };
@@ -143,7 +140,6 @@ const App: React.FC = () => {
       </nav>
 
       <main className="flex-1 max-w-6xl mx-auto w-full p-6 lg:p-12">
-        
         {state === AppState.LANDING && (
             <div className="py-12 animate-in fade-in slide-in-from-bottom-8 duration-1000">
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
@@ -188,10 +184,6 @@ const App: React.FC = () => {
                                 <div className="h-3 bg-slate-50 rounded-full w-full"></div>
                                 <div className="h-3 bg-slate-50 rounded-full w-1/2"></div>
                             </div>
-                            <div className="mt-8 pt-8 border-t border-slate-50 flex items-center justify-between text-slate-400 font-bold text-[10px] uppercase tracking-widest">
-                                <span>Analysis Depth: High</span>
-                                <span>Security: AES-256</span>
-                            </div>
                         </div>
                     </div>
                 </div>
@@ -207,14 +199,13 @@ const App: React.FC = () => {
                     {state === AppState.TRASHING ? '🔥' : '⚙️'}
                 </div>
             </div>
-            <p className="text-slate-400 font-black uppercase tracking-[0.3em] text-[10px] mb-2">{state}</p>
             <h2 className="text-2xl font-bold text-slate-800">{agentMessage}</h2>
           </div>
         )}
 
         {state === AppState.REVIEWING && (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
-             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
                 <div className="bg-white border border-slate-100 p-6 rounded-[24px] shadow-sm flex items-center gap-5">
                     <div className="w-14 h-14 bg-rose-50 rounded-2xl flex items-center justify-center text-2xl">🗑️</div>
                     <div>
@@ -227,12 +218,6 @@ const App: React.FC = () => {
                     <div>
                         <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Files Flagged</p>
                         <h4 className="text-2xl font-black text-slate-900">{candidates.length}</h4>
-                    </div>
-                </div>
-                <div className="bg-indigo-600 p-6 rounded-[24px] shadow-xl shadow-indigo-100 text-white relative overflow-hidden">
-                    <div className="relative z-10">
-                        <p className="text-[10px] font-black opacity-60 uppercase tracking-widest mb-1">AI Recommendation</p>
-                        <p className="text-sm font-bold leading-snug italic">"Audit complete. Recommending immediate purge of these duplicates."</p>
                     </div>
                 </div>
              </div>
@@ -272,7 +257,6 @@ const App: React.FC = () => {
             <div className="py-20 text-center animate-in zoom-in-95 duration-500">
                 <div className="w-24 h-24 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center text-5xl mx-auto mb-10 shadow-inner">✨</div>
                 <h2 className="text-4xl font-black text-slate-900 mb-4 tracking-tight">Storage Optimized.</h2>
-                <p className="text-slate-500 text-lg mb-10">I've successfully cleaned your drive. <br/> Feel free to run another audit anytime.</p>
                 <button 
                     onClick={() => setState(AppState.LANDING)}
                     className="bg-slate-900 text-white px-10 py-4 rounded-2xl font-bold transition-all hover:bg-indigo-600 shadow-xl shadow-indigo-50"
@@ -287,49 +271,28 @@ const App: React.FC = () => {
                 <div className="flex items-start gap-4">
                   <span className="text-2xl">🚨</span>
                   <div>
-                      <h4 className="font-bold text-rose-900">Authorization Error</h4>
+                      <h4 className="font-bold text-rose-900">{error.title}</h4>
                       <p className="text-sm text-rose-600 leading-relaxed mb-4">
-                        Google has blocked the request. This usually means your current website URL is not authorized in your Google Cloud Console.
+                        {error.msg}
                       </p>
                   </div>
                 </div>
                 
-                <div className="bg-white/50 p-4 rounded-xl border border-rose-200">
-                  <h5 className="text-[10px] font-black text-rose-700 uppercase tracking-widest mb-2">Diagnostic Data</h5>
-                  <div className="space-y-2">
-                    <p className="text-xs text-rose-900">
-                      <strong>Current Origin:</strong> <code className="bg-rose-100 px-1 rounded">{window.location.origin}</code>
-                    </p>
-                    <p className="text-xs text-slate-500 italic">
-                      Copy the URL above and add it to "Authorized JavaScript origins" in your Google Cloud Console settings for this Client ID.
-                    </p>
-                  </div>
+                <div className="bg-white/50 p-6 rounded-xl border border-rose-200">
+                  <h5 className="text-[10px] font-black text-rose-700 uppercase tracking-widest mb-4">CRITICAL SETUP STEP</h5>
+                  <ol className="text-xs text-rose-900 space-y-3 list-decimal pl-4">
+                    <li>Go to <strong>APIs & Services > Credentials</strong> in Google Cloud Console.</li>
+                    <li>Edit your OAuth 2.0 Client ID.</li>
+                    <li>Add <strong>exactly</strong> this URL to "Authorized JavaScript origins":</li>
+                    <li className="list-none"><code className="bg-rose-100 px-2 py-1 rounded font-mono font-bold">{error.origin}</code></li>
+                    <li className="italic text-rose-600">Note: Do NOT add /Drive-Purge-Ai/ to the end of that URL.</li>
+                  </ol>
                 </div>
                 
-                <button 
-                  onClick={() => setError(null)}
-                  className="self-end text-xs font-bold text-rose-700 hover:underline"
-                >
-                  Dismiss
-                </button>
+                <button onClick={() => setError(null)} className="self-end text-xs font-bold text-rose-700 hover:underline">Dismiss</button>
             </div>
         )}
       </main>
-
-      <footer className="px-12 py-10 bg-slate-50 border-t border-slate-100 flex flex-col md:flex-row items-center justify-between gap-8 mt-20">
-        <div className="flex flex-col gap-2">
-            <div className="flex items-center gap-2">
-                <div className="w-5 h-5 bg-slate-800 rounded flex items-center justify-center text-[10px] text-white font-bold">P</div>
-                <span className="text-xs font-bold text-slate-800">DrivePurge AI</span>
-            </div>
-            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.2em]">Enterprise Storage Intelligence</p>
-        </div>
-        <div className="flex items-center gap-10 text-[10px] text-slate-400 font-black uppercase tracking-widest">
-            <a href="#" className="hover:text-indigo-600 transition-colors">Privacy Policy</a>
-            <a href="#" className="hover:text-indigo-600 transition-colors">Terms of Service</a>
-            <a href="#" className="hover:text-indigo-600 transition-colors">Gemini API Powered</a>
-        </div>
-      </footer>
     </div>
   );
 };

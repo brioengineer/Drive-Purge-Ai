@@ -4,7 +4,7 @@ import { DriveFile } from "../types";
 /**
  * MASTER CONFIGURATION
  * 1. Create a Client ID in Google Cloud Console
- * 2. Add your GitHub Pages URL to "Authorized JavaScript origins"
+ * 2. Add your GitHub Pages URL to "Authorized JavaScript origins": https://brioengineer.github.io
  * 3. Replace the string below with your Client ID.
  */
 const MASTER_CLIENT_ID = '226301323416-fjko3npic0p35ldf5quauabu5ujbrl82.apps.googleusercontent.com'; 
@@ -19,17 +19,23 @@ class GoogleDriveService {
 
   async init(onAuthChange: (auth: boolean) => void) {
     return new Promise<void>((resolve) => {
-      const gapi = (window as any).gapi;
-      const google = (window as any).google;
-      
-      if (!gapi || !google) {
-        resolve();
-        return;
-      }
+      // Check for libraries every 100ms if not ready
+      const checkInterval = setInterval(() => {
+        const gapi = (window as any).gapi;
+        const google = (window as any).google;
+        
+        if (gapi && google) {
+          clearInterval(checkInterval);
+          this.gapi = gapi;
+          this.google = google;
+          this.setupClient(onAuthChange).then(resolve);
+        }
+      }, 100);
+    });
+  }
 
-      this.gapi = gapi;
-      this.google = google;
-
+  private async setupClient(onAuthChange: (auth: boolean) => void) {
+    return new Promise<void>((resolve) => {
       this.gapi.load('client', async () => {
         try {
           await this.gapi.client.init({
@@ -37,11 +43,15 @@ class GoogleDriveService {
           });
           
           if (MASTER_CLIENT_ID && !MASTER_CLIENT_ID.startsWith('YOUR_')) {
+            console.log("Initializing OAuth for origin:", window.location.origin);
             this.tokenClient = this.google.accounts.oauth2.initTokenClient({
               client_id: MASTER_CLIENT_ID,
               scope: SCOPES,
               callback: (resp: any) => {
-                if (resp.error) return;
+                if (resp.error) {
+                    console.error("Auth callback error:", resp);
+                    return;
+                }
                 this.authenticated = true;
                 onAuthChange(true);
               },
@@ -64,8 +74,9 @@ class GoogleDriveService {
 
   async login() {
     if (!this.tokenClient) {
-      throw new Error("Google Authentication is not configured. Please add your Client ID to services/googleDriveService.ts");
+      throw new Error("Google Authentication is not configured. Origin: " + window.location.origin);
     }
+    // GIS requires a popup, which is triggered here.
     this.tokenClient.requestAccessToken({ prompt: 'consent' });
   }
 
