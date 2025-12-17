@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { DriveFile, CleanupCandidate } from '../types';
+import { DriveFile, CleanupCandidate } from '../types.ts';
 
 interface FileCardProps {
   file: DriveFile;

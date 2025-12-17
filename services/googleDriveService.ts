@@ -1,11 +1,11 @@
 
-import { DriveFile } from "../types";
+import { DriveFile } from "../types.ts";
 
 /**
  * MASTER CONFIGURATION
  * 1. Create a Client ID in Google Cloud Console
  * 2. Add your GitHub Pages URL to "Authorized JavaScript origins": https://brioengineer.github.io
- * 3. Replace the string below with your Client ID.
+ * 3. Ensure the type is "Web Application".
  */
 const MASTER_CLIENT_ID = '226301323416-fjko3npic0p35ldf5quauabu5ujbrl82.apps.googleusercontent.com'; 
 const SCOPES = 'https://www.googleapis.com/auth/drive.metadata.readonly https://www.googleapis.com/auth/drive.file';
@@ -19,7 +19,6 @@ class GoogleDriveService {
 
   async init(onAuthChange: (auth: boolean) => void) {
     return new Promise<void>((resolve) => {
-      // Check for libraries every 100ms if not ready
       const checkInterval = setInterval(() => {
         const gapi = (window as any).gapi;
         const google = (window as any).google;
@@ -43,13 +42,12 @@ class GoogleDriveService {
           });
           
           if (MASTER_CLIENT_ID && !MASTER_CLIENT_ID.startsWith('YOUR_')) {
-            console.log("Initializing OAuth for origin:", window.location.origin);
             this.tokenClient = this.google.accounts.oauth2.initTokenClient({
               client_id: MASTER_CLIENT_ID,
               scope: SCOPES,
               callback: (resp: any) => {
                 if (resp.error) {
-                    console.error("Auth callback error:", resp);
+                    console.error("Authentication Error Details:", resp);
                     return;
                 }
                 this.authenticated = true;
@@ -61,22 +59,18 @@ class GoogleDriveService {
           this.initialized = true;
           resolve();
         } catch (e) {
-          console.error("GAPI init error", e);
+          console.error("GAPI initialization failed:", e);
           resolve();
         }
       });
     });
   }
 
-  isConfigured(): boolean {
-    return !!MASTER_CLIENT_ID && !MASTER_CLIENT_ID.startsWith('YOUR_');
-  }
-
   async login() {
     if (!this.tokenClient) {
-      throw new Error("Google Authentication is not configured. Origin: " + window.location.origin);
+      throw new Error(`Google Authentication is not configured for origin: ${window.location.origin}. Please check your Cloud Console settings.`);
     }
-    // GIS requires a popup, which is triggered here.
+    //GIS requires a user gesture for this popup
     this.tokenClient.requestAccessToken({ prompt: 'consent' });
   }
 

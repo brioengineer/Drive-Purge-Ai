@@ -1,6 +1,6 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
-import { DriveFile, AnalysisResult } from "../types";
+import { DriveFile, AnalysisResult } from "../types.ts";
 
 // Always use const ai = new GoogleGenAI({apiKey: process.env.API_KEY});
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
@@ -25,7 +25,6 @@ export const analyzeFilesWithGemini = async (files: DriveFile[]): Promise<Analys
   Also include a short summary of the findings.`;
 
   try {
-    // Fixing content structure to use parts array as per guidelines
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
       contents: {
@@ -59,7 +58,6 @@ export const analyzeFilesWithGemini = async (files: DriveFile[]): Promise<Analys
       }
     });
 
-    // Directly access response.text property
     return JSON.parse(response.text || '{}') as AnalysisResult;
   } catch (error) {
     console.error("Gemini Analysis Error:", error);

@@ -1,9 +1,9 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { AppState, DriveFile, CleanupCandidate } from './types';
-import { driveService } from './services/googleDriveService';
-import { analyzeFilesWithGemini } from './services/geminiService';
-import FileCard from './components/FileCard';
+import { AppState, DriveFile, CleanupCandidate } from './types.ts';
+import { driveService } from './services/googleDriveService.ts';
+import { analyzeFilesWithGemini } from './services/geminiService.ts';
+import FileCard from './components/FileCard.tsx';
 
 const MOCK_FILES: DriveFile[] = [
   { id: 'm1', name: 'Annual_Report_2019_Draft.pdf', size: '12000000', mimeType: 'application/pdf', modifiedTime: '2019-03-12T10:00:00Z' },
@@ -49,7 +49,7 @@ const App: React.FC = () => {
         } catch (e: any) {
             setError({
                 title: "Authentication Failed",
-                msg: e.message || "Could not initialize Google login.",
+                msg: e.message || "The login popup was blocked or could not be initialized.",
                 origin: window.location.origin
             });
             return;
@@ -79,7 +79,7 @@ const App: React.FC = () => {
     } catch (err: any) {
       setError({
           title: "Analysis Error",
-          msg: err.message || "Failed to process Drive files.",
+          msg: err.message || "Failed to process Drive files. Check console for details.",
           origin: window.location.origin
       });
       setState(AppState.LANDING);
@@ -267,10 +267,10 @@ const App: React.FC = () => {
         )}
 
         {error && (
-            <div className="mt-12 p-8 bg-rose-50 border border-rose-100 rounded-[24px] flex flex-col gap-4 animate-in slide-in-from-top-4">
+            <div className="mt-12 p-8 bg-rose-50 border border-rose-100 rounded-[24px] flex flex-col gap-4 animate-in slide-in-from-top-4 overflow-hidden">
                 <div className="flex items-start gap-4">
                   <span className="text-2xl">🚨</span>
-                  <div>
+                  <div className="flex-1">
                       <h4 className="font-bold text-rose-900">{error.title}</h4>
                       <p className="text-sm text-rose-600 leading-relaxed mb-4">
                         {error.msg}
@@ -279,17 +279,24 @@ const App: React.FC = () => {
                 </div>
                 
                 <div className="bg-white/50 p-6 rounded-xl border border-rose-200">
-                  <h5 className="text-[10px] font-black text-rose-700 uppercase tracking-widest mb-4">CRITICAL SETUP STEP</h5>
+                  <h5 className="text-[10px] font-black text-rose-700 uppercase tracking-widest mb-4 underline decoration-2 underline-offset-4">HOW TO FIX THE 'DOESN'T COMPLY' 400 ERROR</h5>
+                  <p className="text-xs text-rose-900 mb-4 leading-relaxed">
+                    Google is blocking this request because the <strong>Authorized Origin</strong> in your Cloud Console does not match where the app is hosted.
+                  </p>
                   <ol className="text-xs text-rose-900 space-y-3 list-decimal pl-4">
-                    <li>Go to <strong>APIs & Services > Credentials</strong> in Google Cloud Console.</li>
-                    <li>Edit your OAuth 2.0 Client ID.</li>
-                    <li>Add <strong>exactly</strong> this URL to "Authorized JavaScript origins":</li>
-                    <li className="list-none"><code className="bg-rose-100 px-2 py-1 rounded font-mono font-bold">{error.origin}</code></li>
-                    <li className="italic text-rose-600">Note: Do NOT add /Drive-Purge-Ai/ to the end of that URL.</li>
+                    <li>Go to <strong>APIs & Services > Credentials</strong> in your Google Cloud Console.</li>
+                    <li>Edit your <strong>OAuth 2.0 Client ID</strong> (ensure Type is "Web Application").</li>
+                    <li>Under <strong>Authorized JavaScript origins</strong>, add this exact domain:</li>
+                    <li className="list-none my-2"><code className="bg-rose-100 px-3 py-1.5 rounded font-mono font-bold text-rose-800 break-all">{error.origin}</code></li>
+                    <li className="font-bold">Crucial: Do NOT add <span className="text-rose-600">/Drive-Purge-Ai/</span> to that field. Just the domain.</li>
+                    <li>Add your email (<code className="bg-rose-100 px-1 rounded">steve@briotech.com</code>) to the <strong>Test Users</strong> list in the "OAuth consent screen" tab.</li>
                   </ol>
+                  <div className="mt-4 p-3 bg-amber-50 rounded border border-amber-100 text-[10px] text-amber-800 italic leading-snug">
+                    * Changes can take 5-10 minutes to propagate on Google's side. Refresh and try again after updating.
+                  </div>
                 </div>
                 
-                <button onClick={() => setError(null)} className="self-end text-xs font-bold text-rose-700 hover:underline">Dismiss</button>
+                <button onClick={() => setError(null)} className="self-end text-xs font-bold text-rose-700 hover:underline">Dismiss Error</button>
             </div>
         )}
       </main>
