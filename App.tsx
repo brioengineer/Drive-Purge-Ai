@@ -56,7 +56,7 @@ const App: React.FC = () => {
     if (!isDemo && !isAuthenticated) {
         try {
             await driveService.login();
-            return; // Login callback will handle state change if successful
+            return; 
         } catch (e: any) {
             setError(e.message);
             return;
@@ -117,7 +117,6 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen flex flex-col font-sans bg-white text-slate-900">
-      {/* Premium Header */}
       <nav className="glass-panel sticky top-0 z-50 px-8 py-4 flex items-center justify-between border-b border-slate-100">
         <div className="flex items-center gap-2 cursor-pointer" onClick={() => setState(AppState.LANDING)}>
           <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold">P</div>
@@ -143,7 +142,6 @@ const App: React.FC = () => {
         </div>
       </nav>
 
-      {/* Main Experience */}
       <main className="flex-1 max-w-6xl mx-auto w-full p-6 lg:p-12">
         
         {state === AppState.LANDING && (
@@ -216,7 +214,6 @@ const App: React.FC = () => {
 
         {state === AppState.REVIEWING && (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
-             {/* Stats Row */}
              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
                 <div className="bg-white border border-slate-100 p-6 rounded-[24px] shadow-sm flex items-center gap-5">
                     <div className="w-14 h-14 bg-rose-50 rounded-2xl flex items-center justify-center text-2xl">🗑️</div>
@@ -286,15 +283,35 @@ const App: React.FC = () => {
         )}
 
         {error && (
-            <div className="mt-12 p-6 bg-rose-50 border border-rose-100 rounded-[24px] flex items-start gap-4 animate-in slide-in-from-top-4">
-                <span className="text-2xl">🚨</span>
-                <div>
-                    <h4 className="font-bold text-rose-900">System Error</h4>
-                    <p className="text-sm text-rose-600 leading-relaxed">{error}</p>
-                    {error.includes('configured') && (
-                        <p className="text-xs text-rose-400 mt-2 italic font-medium">Developer: Please check the Master Client ID in services/googleDriveService.ts</p>
-                    )}
+            <div className="mt-12 p-8 bg-rose-50 border border-rose-100 rounded-[24px] flex flex-col gap-4 animate-in slide-in-from-top-4">
+                <div className="flex items-start gap-4">
+                  <span className="text-2xl">🚨</span>
+                  <div>
+                      <h4 className="font-bold text-rose-900">Authorization Error</h4>
+                      <p className="text-sm text-rose-600 leading-relaxed mb-4">
+                        Google has blocked the request. This usually means your current website URL is not authorized in your Google Cloud Console.
+                      </p>
+                  </div>
                 </div>
+                
+                <div className="bg-white/50 p-4 rounded-xl border border-rose-200">
+                  <h5 className="text-[10px] font-black text-rose-700 uppercase tracking-widest mb-2">Diagnostic Data</h5>
+                  <div className="space-y-2">
+                    <p className="text-xs text-rose-900">
+                      <strong>Current Origin:</strong> <code className="bg-rose-100 px-1 rounded">{window.location.origin}</code>
+                    </p>
+                    <p className="text-xs text-slate-500 italic">
+                      Copy the URL above and add it to "Authorized JavaScript origins" in your Google Cloud Console settings for this Client ID.
+                    </p>
+                  </div>
+                </div>
+                
+                <button 
+                  onClick={() => setError(null)}
+                  className="self-end text-xs font-bold text-rose-700 hover:underline"
+                >
+                  Dismiss
+                </button>
             </div>
         )}
       </main>
