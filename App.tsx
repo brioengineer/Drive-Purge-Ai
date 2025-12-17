@@ -33,25 +33,19 @@ const App: React.FC = () => {
     });
   }, []);
 
-  const stats = useMemo(() => {
-    const totalSize = files.reduce((acc, f) => acc + (f.size ? parseInt(f.size) : 0), 0);
-    const candidateSize = candidates.reduce((acc, c) => {
-      const f = files.find(file => file.id === c.id);
-      return acc + (f?.size ? parseInt(f.size) : 0);
-    }, 0);
-    return { totalSize, candidateSize };
-  }, [files, candidates]);
-
   const startAnalysis = async (isDemo: boolean = false) => {
     setError(null);
     if (!isDemo && !isAuthenticated) {
         try {
+            setAgentMessage("Handshaking with Google...");
             await driveService.login();
+            // Note: GIS uses a callback, so we don't proceed to SCANNING here.
+            // The callback in init() will update isAuthenticated, then the user clicks again.
             return; 
         } catch (e: any) {
             setError({
-                title: "Authentication Failed",
-                msg: e.message || "The login request was rejected by Google's policy server.",
+                title: "Google Auth Error 400",
+                msg: e.message || "Invalid Request (storagerelay). This is an Origin mismatch.",
                 origin: window.location.origin
             });
             return;
@@ -66,7 +60,7 @@ const App: React.FC = () => {
       setFiles(fetchedFiles);
       
       setState(AppState.ANALYZING);
-      setAgentMessage("AI Agent auditing storage patterns...");
+      setAgentMessage("Gemini AI is reasoning over your storage...");
       
       const analysis = await analyzeFilesWithGemini(fetchedFiles);
       setCandidates(analysis.candidates);
@@ -80,8 +74,8 @@ const App: React.FC = () => {
       setState(AppState.REVIEWING);
     } catch (err: any) {
       setError({
-          title: "Audit Error",
-          msg: err.message || "The analysis engine encountered a problem.",
+          title: "Audit Interrupted",
+          msg: err.message || "Analysis engine failed.",
           origin: window.location.origin
       });
       setState(AppState.LANDING);
@@ -104,7 +98,7 @@ const App: React.FC = () => {
       setSelectedIds(new Set());
       setState(AppState.COMPLETED);
     } catch (err: any) {
-      setError({ title: "Cleanup Interrupted", msg: err.message, origin: window.location.origin });
+      setError({ title: "Cleanup Error", msg: err.message, origin: window.location.origin });
       setState(AppState.REVIEWING);
     }
   };
@@ -114,7 +108,7 @@ const App: React.FC = () => {
       <nav className="glass-panel sticky top-0 z-50 px-8 py-5 flex items-center justify-between border-b border-slate-100">
         <div className="flex items-center gap-3 cursor-pointer group" onClick={() => setState(AppState.LANDING)}>
           <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white font-black text-xl shadow-lg group-hover:rotate-6 transition-transform">P</div>
-          <span className="text-xl font-black tracking-tight text-slate-800">DrivePurge<span className="text-indigo-600">AI</span></span>
+          <span className="text-xl font-black tracking-tight">DrivePurge<span className="text-indigo-600">AI</span></span>
         </div>
         <div className="flex items-center gap-5">
           {isAuthenticated && (
@@ -124,7 +118,7 @@ const App: React.FC = () => {
             </div>
           )}
           {state === AppState.REVIEWING && (
-            <button onClick={handleCleanup} disabled={selectedIds.size === 0} className="bg-indigo-600 hover:bg-indigo-700 disabled:opacity-30 text-white px-7 py-2.5 rounded-full font-bold text-sm shadow-xl shadow-indigo-100 transition-all active:scale-95">
+            <button onClick={handleCleanup} disabled={selectedIds.size === 0} className="bg-indigo-600 hover:bg-indigo-700 disabled:opacity-30 text-white px-7 py-2.5 rounded-full font-bold text-sm shadow-xl transition-all active:scale-95">
               Secure Purge ({selectedIds.size})
             </button>
           )}
@@ -136,30 +130,29 @@ const App: React.FC = () => {
             <div className="py-12 animate-in fade-in slide-in-from-bottom-8 duration-1000">
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-20 items-center">
                     <div>
-                        <span className="inline-block px-4 py-1.5 bg-indigo-50 text-indigo-600 rounded-full text-[11px] font-black uppercase tracking-[0.2em] mb-8">Storage Intelligence Agent</span>
+                        <span className="inline-block px-4 py-1.5 bg-indigo-50 text-indigo-600 rounded-full text-[11px] font-black uppercase tracking-[0.2em] mb-8">Google Drive Agent</span>
                         <h1 className="text-6xl font-black text-slate-900 leading-[1.05] mb-8 tracking-tighter">
-                            Reclaim your <br/> digital space with <br/> <span className="text-indigo-600">AI reasoning.</span>
+                            Reclaim space <br/> using <span className="text-indigo-600">AI reasoning.</span>
                         </h1>
-                        <p className="text-xl text-slate-500 mb-12 leading-relaxed font-medium">The professional cleaner for Google Drive. Detect duplicates, rot, and oversized drafts in seconds.</p>
+                        <p className="text-xl text-slate-500 mb-12 leading-relaxed">Let Gemini identify duplicates, ancient drafts, and hidden storage hogs for you.</p>
                         <div className="flex flex-col sm:flex-row gap-5">
                             <button onClick={() => startAnalysis(false)} className="bg-slate-900 text-white px-10 py-6 rounded-2xl font-black text-xl hover:bg-indigo-600 transition-all flex items-center justify-center gap-4 shadow-2xl hover:-translate-y-1">
                                 <img src="https://www.gstatic.com/images/branding/product/1x/googleg_32dp.png" className="w-7 h-7 bg-white rounded-full p-1.5 shadow-sm" alt=""/>
-                                Get Started Free
+                                {isAuthenticated ? 'Begin Audit' : 'Connect Drive'}
                             </button>
                             <button onClick={() => startAnalysis(true)} className="bg-white border-2 border-slate-100 text-slate-400 px-10 py-6 rounded-2xl font-black text-xl hover:border-indigo-100 hover:text-indigo-600 transition-all">Demo Audit</button>
                         </div>
                     </div>
-                    <div className="relative">
-                        <div className="absolute -top-20 -right-20 w-64 h-64 bg-indigo-100 rounded-full blur-[100px] opacity-40"></div>
+                    <div className="relative hidden lg:block">
                         <div className="bg-white border border-slate-100 rounded-[48px] p-10 shadow-2xl relative animate-float">
                             <div className="flex items-center gap-5 mb-10">
                                 <div className="w-14 h-14 bg-indigo-600 rounded-2xl flex items-center justify-center text-3xl shadow-lg">🤖</div>
                                 <div>
-                                    <h3 className="font-black text-slate-900 text-xl tracking-tight">Agent Alpha-9</h3>
-                                    <p className="text-xs text-indigo-500 font-black uppercase tracking-widest">Active Diagnostic Mode</p>
+                                    <h3 className="font-black text-slate-900 text-xl tracking-tight">Agent Alpha</h3>
+                                    <p className="text-xs text-indigo-500 font-black uppercase tracking-widest">Active Diagnostic</p>
                                 </div>
                             </div>
-                            <div className="space-y-5">
+                            <div className="space-y-4">
                                 <div className="h-4 bg-slate-50 rounded-full w-4/5"></div>
                                 <div className="h-4 bg-slate-50 rounded-full w-full"></div>
                                 <div className="h-4 bg-slate-50 rounded-full w-2/3"></div>
@@ -180,7 +173,6 @@ const App: React.FC = () => {
                 </div>
             </div>
             <h2 className="text-3xl font-black text-slate-900 tracking-tight">{agentMessage}</h2>
-            <p className="text-slate-400 mt-4 font-medium">Please keep this window open.</p>
           </div>
         )}
 
@@ -189,11 +181,11 @@ const App: React.FC = () => {
               <div className="flex items-end justify-between mb-12">
                 <div>
                     <h3 className="text-4xl font-black text-slate-900 tracking-tight mb-2">Audit Results</h3>
-                    <p className="text-slate-400 font-medium">Review the files flagged by the AI for deletion.</p>
+                    <p className="text-slate-400 font-medium">{candidates.length} candidates identified for removal.</p>
                 </div>
                 <div className="flex gap-4">
-                  <button onClick={() => setSelectedIds(new Set(candidates.map(c => c.id)))} className="px-5 py-2 rounded-xl text-xs font-black text-indigo-600 uppercase tracking-widest hover:bg-indigo-50 transition-colors">Select All</button>
-                  <button onClick={() => setSelectedIds(new Set())} className="px-5 py-2 rounded-xl text-xs font-black text-slate-300 uppercase tracking-widest hover:bg-slate-50 transition-colors">Clear</button>
+                  <button onClick={() => setSelectedIds(new Set(candidates.map(c => c.id)))} className="px-5 py-2 rounded-xl text-xs font-black text-indigo-600 uppercase tracking-widest hover:bg-indigo-50">Select All</button>
+                  <button onClick={() => setSelectedIds(new Set())} className="px-5 py-2 rounded-xl text-xs font-black text-slate-300 uppercase tracking-widest hover:bg-slate-50">Clear</button>
                 </div>
               </div>
               
@@ -215,8 +207,8 @@ const App: React.FC = () => {
         {state === AppState.COMPLETED && (
             <div className="py-24 text-center animate-in zoom-in-90 duration-500">
                 <div className="w-32 h-32 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center text-7xl mx-auto mb-12 shadow-inner">✨</div>
-                <h2 className="text-5xl font-black text-slate-900 mb-6 tracking-tighter">Clean as a whistle.</h2>
-                <p className="text-xl text-slate-400 mb-12">Your storage has been successfully optimized.</p>
+                <h2 className="text-5xl font-black text-slate-900 mb-6 tracking-tighter">Mission Accomplished.</h2>
+                <p className="text-xl text-slate-400 mb-12 font-medium">Your storage is now optimized.</p>
                 <button onClick={() => setState(AppState.LANDING)} className="bg-slate-900 text-white px-12 py-5 rounded-2xl font-black text-xl hover:bg-indigo-600 transition-all shadow-2xl">Return to Hub</button>
             </div>
         )}
@@ -224,21 +216,22 @@ const App: React.FC = () => {
         {error && (
             <div className="mt-12 p-10 bg-rose-50 border border-rose-100 rounded-[40px] flex flex-col gap-8 animate-in slide-in-from-top-4 shadow-xl">
                 <div className="flex items-start gap-6">
-                  <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center text-4xl shadow-sm border border-rose-100">🚫</div>
+                  <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center text-4xl shadow-sm border border-rose-100">🛑</div>
                   <div className="flex-1">
-                      <h4 className="font-black text-rose-900 text-2xl tracking-tight mb-2">{error.title}</h4>
+                      <h4 className="font-black text-rose-900 text-2xl tracking-tight mb-2">Google Rejected Connection</h4>
                       <p className="text-rose-700 leading-relaxed font-medium">
-                        Your app isn't authorized to talk to Google yet. This is almost always a URL mismatch in your console.
+                        The "Error 400: invalid_request" or "storagerelay" error means Google doesn't recognize your URL.
                       </p>
                   </div>
                 </div>
                 
                 <div className="bg-white p-8 rounded-3xl border border-rose-200 shadow-sm">
-                  <h5 className="text-[11px] font-black text-indigo-600 uppercase tracking-[0.2em] mb-6">FIX: Copy this exact origin</h5>
+                  <h5 className="text-[11px] font-black text-indigo-600 uppercase tracking-[0.2em] mb-6">CRITICAL FIX: Origin Mismatch</h5>
                   
                   <div className="space-y-8">
                     <div>
-                        <p className="text-sm text-slate-600 mb-3 font-semibold">1. Authorized JavaScript Origin:</p>
+                        <p className="text-sm text-slate-600 mb-3 font-semibold italic">Did you add the slash?</p>
+                        <p className="text-xs text-slate-500 mb-4">Google requires the origin to have <strong>NO trailing slash</strong> and <strong>NO sub-paths</strong>.</p>
                         <div className="flex items-center gap-3">
                             <code className="flex-1 bg-slate-50 p-4 rounded-xl font-mono text-sm font-bold text-indigo-700 border border-slate-200 break-all select-all">
                                 {error.origin}
@@ -247,23 +240,31 @@ const App: React.FC = () => {
                                 onClick={() => navigator.clipboard.writeText(error.origin)}
                                 className="bg-slate-900 text-white px-6 py-4 rounded-xl text-xs font-black uppercase hover:bg-indigo-600 transition-colors shadow-lg"
                             >
-                                Copy URL
+                                Copy Origin
                             </button>
                         </div>
+                        <p className="text-[10px] text-rose-500 mt-3 font-bold uppercase tracking-tight">⚠️ In Google Cloud Console: DO NOT add "/DrivePurgeAI/" or any other suffix.</p>
                     </div>
 
-                    <div>
-                        <p className="text-sm text-slate-600 mb-3 font-semibold">2. OAuth Consent Screen (Test Users):</p>
-                        <p className="text-xs text-slate-500 leading-relaxed italic">
-                           Ensure your email is added to the "Test Users" list if your app is still in "Testing" mode.
-                        </p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-6 border-t border-slate-100">
+                        <div>
+                            <h6 className="text-xs font-black text-slate-800 uppercase mb-2">Publishing Status</h6>
+                            <p className="text-[11px] text-slate-500 leading-relaxed">
+                                <strong>Yes, publish it to Production.</strong> It removes the manual "Test User" requirement. However, this does <em>not</em> fix the 400 error; only the Origin setting fixes that.
+                            </p>
+                        </div>
+                        <div>
+                            <h6 className="text-xs font-black text-slate-800 uppercase mb-2">Propagation Time</h6>
+                            <p className="text-[11px] text-slate-500 leading-relaxed">
+                                After you save changes in the Google Cloud Console, <strong>wait 5 full minutes</strong>. Google's global DNS and policy servers take time to sync.
+                            </p>
+                        </div>
                     </div>
                   </div>
                 </div>
                 
-                <div className="flex flex-col sm:flex-row items-center justify-between gap-6 px-4">
-                  <p className="text-xs text-rose-400 font-bold italic text-center sm:text-left uppercase tracking-tighter">Wait 2 minutes after saving in Google Console!</p>
-                  <button onClick={() => setError(null)} className="px-10 py-4 bg-rose-600 text-white rounded-2xl text-sm font-black shadow-lg hover:bg-rose-700 transition-all hover:scale-105 active:scale-95">RETRY CONNECTION</button>
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
+                  <button onClick={() => setError(null)} className="px-12 py-4 bg-rose-600 text-white rounded-2xl text-sm font-black shadow-lg hover:bg-rose-700 transition-all active:scale-95">RETRY CONNECTION</button>
                 </div>
             </div>
         )}
