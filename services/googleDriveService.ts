@@ -12,6 +12,8 @@ class GoogleDriveService {
   public initialized: boolean = false;
 
   async init(onAuthChange: (auth: boolean) => void) {
+    console.log("Current Origin being used for OAuth:", window.location.origin);
+    
     return new Promise<void>((resolve) => {
       const checkInterval = setInterval(() => {
         const gapi = (window as any).gapi;
@@ -41,7 +43,7 @@ class GoogleDriveService {
               scope: SCOPES,
               callback: (resp: any) => {
                 if (resp.error) {
-                    console.error("OAuth Error:", resp);
+                    console.error("OAuth Internal Callback Error:", resp);
                     return;
                 }
                 this.authenticated = true;
@@ -60,7 +62,7 @@ class GoogleDriveService {
   }
 
   async login() {
-    if (!this.tokenClient) throw new Error("Google libraries not initialized.");
+    if (!this.tokenClient) throw new Error("Google Libraries are still loading. Please wait 2 seconds.");
     this.tokenClient.requestAccessToken({ prompt: 'consent' });
   }
 
@@ -75,7 +77,7 @@ class GoogleDriveService {
   }
 
   async trashFile(fileId: string): Promise<void> {
-    if (fileId.startsWith('m')) return; // Mock file skip
+    if (fileId.startsWith('m')) return;
     await this.gapi.client.drive.files.update({
       fileId,
       trashed: true
