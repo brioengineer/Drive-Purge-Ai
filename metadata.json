@@ -1,0 +1,5 @@
+{
+  "name": "Google Drive Cleaner AI Agent",
+  "description": "An intelligent Google Drive assistant that identifies duplicates, large files, and abandoned documents to help you reclaim storage space.",
+  "requestFramePermissions": []
+}

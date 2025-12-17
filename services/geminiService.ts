@@ -1,0 +1,68 @@
+
+import { GoogleGenAI, Type } from "@google/genai";
+import { DriveFile, AnalysisResult } from "../types";
+
+// Always use const ai = new GoogleGenAI({apiKey: process.env.API_KEY});
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+
+export const analyzeFilesWithGemini = async (files: DriveFile[]): Promise<AnalysisResult> => {
+  // We only send relevant metadata to conserve tokens
+  const fileMetadata = files.map(f => ({
+    id: f.id,
+    name: f.name,
+    size: f.size,
+    modifiedTime: f.modifiedTime,
+    md5Checksum: f.md5Checksum
+  }));
+
+  const prompt = `Analyze this list of Google Drive files and identify candidates for deletion. 
+  Focus on:
+  1. DUPLICATES: Files with identical names and sizes (or checksums if available).
+  2. LARGE FILES: Files significantly larger than average (e.g., > 100MB).
+  3. OLD FILES: Files not modified in over 2 years.
+  
+  Provide a JSON response containing the file IDs, the reason for flagging, the category, and a confidence score (0-1).
+  Also include a short summary of the findings.`;
+
+  try {
+    // Fixing content structure to use parts array as per guidelines
+    const response = await ai.models.generateContent({
+      model: "gemini-3-flash-preview",
+      contents: {
+        parts: [
+          { text: prompt },
+          { text: JSON.stringify(fileMetadata) }
+        ]
+      },
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            candidates: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  id: { type: Type.STRING },
+                  reason: { type: Type.STRING },
+                  category: { type: Type.STRING, enum: ['duplicate', 'old', 'large'] },
+                  confidence: { type: Type.NUMBER }
+                },
+                required: ['id', 'reason', 'category', 'confidence']
+              }
+            },
+            summary: { type: Type.STRING }
+          },
+          required: ['candidates', 'summary']
+        }
+      }
+    });
+
+    // Directly access response.text property
+    return JSON.parse(response.text || '{}') as AnalysisResult;
+  } catch (error) {
+    console.error("Gemini Analysis Error:", error);
+    throw error;
+  }
+};
