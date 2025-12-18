@@ -44,7 +44,6 @@ const App: React.FC = () => {
       setAgentMessage(analysis.summary);
       setState(AppState.REVIEWING);
     } catch (err: unknown) {
-      // Safely narrow the unknown error type to a string.
       const msg = err instanceof Error ? err.message : String(err);
       setError({ title: "Audit Interrupted", msg: msg });
       setState(AppState.LANDING);
@@ -64,7 +63,6 @@ const App: React.FC = () => {
         setAgentMessage(analysis.summary);
         setState(AppState.REVIEWING);
       } catch (err: unknown) {
-        // Fix for potential line 90 error: ensure caught error is explicitly handled as string.
         const msg = err instanceof Error ? err.message : String(err);
         setError({ title: "Demo Failed", msg: msg });
         setState(AppState.LANDING);
@@ -75,7 +73,6 @@ const App: React.FC = () => {
     try {
       await driveService.login();
     } catch (e: unknown) {
-      // Safely handle the error from Google Identity Services.
       const msg = e instanceof Error ? e.message : String(e);
       setError({ 
         title: "Connection Failed", 
@@ -94,7 +91,6 @@ const App: React.FC = () => {
       }
       setState(AppState.COMPLETED);
     } catch (err: unknown) {
-      // Safely narrow the unknown error type to a string for UI display.
       const msg = err instanceof Error ? err.message : String(err);
       setError({ title: "Purge Failed", msg: msg });
       setState(AppState.REVIEWING);
@@ -102,9 +98,13 @@ const App: React.FC = () => {
   };
 
   const saveSettings = () => {
+    // Save to service (and localStorage)
     driveService.setClientId(tempClientId);
     setIsSettingsOpen(false);
-    window.location.reload();
+    // Use location.replace to ensure a clean navigation state
+    setTimeout(() => {
+      window.location.replace(window.location.origin + window.location.pathname);
+    }, 100);
   };
 
   return (
@@ -260,7 +260,10 @@ const App: React.FC = () => {
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 animate-in fade-in duration-300">
           <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setIsSettingsOpen(false)}></div>
           <div className="relative w-full max-w-lg bg-white rounded-[40px] p-10 shadow-2xl animate-in zoom-in-95 duration-300">
-            <h3 className="text-3xl font-black text-slate-900 mb-2 tracking-tight">Setup Configuration</h3>
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-3xl font-black text-slate-900 tracking-tight">Setup Configuration</h3>
+              <button onClick={() => setIsSettingsOpen(false)} className="text-slate-400 hover:text-slate-600">&times;</button>
+            </div>
             <p className="text-slate-500 text-sm mb-8">Paste your Google Cloud OAuth 2.0 Client ID here.</p>
             
             <div className="space-y-6">
