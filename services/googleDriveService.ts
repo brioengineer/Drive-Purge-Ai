@@ -1,7 +1,7 @@
 
 import { DriveFile } from "../types.ts";
 
-const MASTER_CLIENT_ID = '226301323416-fjko3npic0p35ldf5quauabu5ujbrl82.apps.googleusercontent.com'; 
+const DEFAULT_CLIENT_ID = '226301323416-fjko3npic0p35ldf5quauabu5ujbrl82.apps.googleusercontent.com'; 
 const SCOPES = 'https://www.googleapis.com/auth/drive.metadata.readonly https://www.googleapis.com/auth/drive.file';
 
 class GoogleDriveService {
@@ -10,9 +10,21 @@ class GoogleDriveService {
   private tokenClient: any = null;
   public authenticated: boolean = false;
   public initialized: boolean = false;
+  private onAuthChangeCallback: ((auth: boolean) => void) | null = null;
+
+  getClientId() {
+    return localStorage.getItem('DRIVE_CLIENT_ID') || DEFAULT_CLIENT_ID;
+  }
+
+  setClientId(id: string) {
+    localStorage.setItem('DRIVE_CLIENT_ID', id);
+    // Force re-init on next login attempt
+    this.tokenClient = null;
+  }
 
   async init(onAuthChange: (auth: boolean) => void) {
-    console.log("[DrivePurge] Detected Origin:", window.location.origin);
+    this.onAuthChangeCallback = onAuthChange;
+    console.log("[DrivePurge] Origin:", window.location.origin);
     
     return new Promise<void>((resolve) => {
       const checkInterval = setInterval(() => {
@@ -23,13 +35,13 @@ class GoogleDriveService {
           clearInterval(checkInterval);
           this.gapi = gapi;
           this.google = google;
-          this.setupClient(onAuthChange).then(resolve);
+          this.setupClient().then(resolve);
         }
       }, 500);
     });
   }
 
-  private async setupClient(onAuthChange: (auth: boolean) => void) {
+  private async setupClient() {
     return new Promise<void>((resolve) => {
       this.gapi.load('client', async () => {
         try {
@@ -37,8 +49,9 @@ class GoogleDriveService {
             discoveryDocs: ["https://www.googleapis.com/discovery/v1/apis/drive/v3/rest"],
           });
           
+          const clientId = this.getClientId();
           this.tokenClient = this.google.accounts.oauth2.initTokenClient({
-            client_id: MASTER_CLIENT_ID,
+            client_id: clientId,
             scope: SCOPES,
             callback: (resp: any) => {
               if (resp.error) {
@@ -47,15 +60,14 @@ class GoogleDriveService {
               }
               this.authenticated = true;
               this.gapi.client.setToken(resp);
-              onAuthChange(true);
+              if (this.onAuthChangeCallback) this.onAuthChangeCallback(true);
             },
           });
           
           this.initialized = true;
-          console.log("[DrivePurge] Service Ready.");
           resolve();
         } catch (e) {
-          console.error("[DrivePurge] Initialization Failed:", e);
+          console.error("[DrivePurge] GAPI/GIS Init Failed:", e);
           resolve();
         }
       });
@@ -64,14 +76,16 @@ class GoogleDriveService {
 
   async login() {
     if (!this.tokenClient) {
-      throw new Error("The Google Identity Service is still loading. Please wait a few seconds.");
+      await this.setupClient();
     }
-    // Using select_account to force a clean handshake
+    if (!this.tokenClient) {
+      throw new Error("Google Identity Service failed to initialize.");
+    }
     this.tokenClient.requestAccessToken({ prompt: 'select_account' });
   }
 
   async listFiles(pageSize: number = 200): Promise<DriveFile[]> {
-    if (!this.authenticated) throw new Error("Connection lost. Please reconnect.");
+    if (!this.authenticated) throw new Error("No active session.");
     const response = await this.gapi.client.drive.files.list({
       pageSize,
       fields: 'files(id, name, size, mimeType, modifiedTime, md5Checksum, webViewLink, thumbnailLink)',
@@ -81,7 +95,7 @@ class GoogleDriveService {
   }
 
   async trashFile(fileId: string): Promise<void> {
-    if (fileId.startsWith('m')) return; // Ignore mock files
+    if (fileId.startsWith('m')) return;
     await this.gapi.client.drive.files.update({
       fileId,
       trashed: true
