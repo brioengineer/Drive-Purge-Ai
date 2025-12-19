@@ -1,7 +1,7 @@
 
 import { DriveFile } from "../types.ts";
 
-const DEFAULT_CLIENT_ID = '226301323416-fjko3npic0p35ldf5quauabu5ujbrl82.apps.googleusercontent.com'; 
+const DEFAULT_CLIENT_ID = '226301323416-7aeek9fc210lc0ab4f18hffeqf31nmig.apps.googleusercontent.com'; 
 const SCOPES = 'https://www.googleapis.com/auth/drive.metadata.readonly https://www.googleapis.com/auth/drive.file';
 
 class GoogleDriveService {
